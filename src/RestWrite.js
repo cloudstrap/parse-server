@@ -290,29 +290,32 @@ RestWrite.prototype.handleAuthData = function(authData) {
     this.storage['authProvider'] = Object.keys(authData).join(',');
 
     if (results.length > 0) {
+      const userResult = results[0];
+      const mutatedAuthData = {};
+      Object.keys(authData).forEach((provider) => {
+        const providerData = authData[provider];
+        const userAuthData = userResult.authData[provider];
+        if (!_.isEqual(providerData, userAuthData)) {
+          mutatedAuthData[provider] = providerData;
+        }
+      });
+      const hasMutatedAuthData = Object.keys(mutatedAuthData).length !== 0;
       if (!this.query) {
         // Login with auth data
         delete results[0].password;
-        const userResult = results[0];
 
         // need to set the objectId first otherwise location has trailing undefined
         this.data.objectId = userResult.objectId;
-
-        // Determine if authData was updated
-        const mutatedAuthData = {};
-        Object.keys(authData).forEach((provider) => {
-          const providerData = authData[provider];
-          const userAuthData = userResult.authData[provider];
-          if (!_.isEqual(providerData, userAuthData)) {
-            mutatedAuthData[provider] = providerData;
-          }
-        });
 
         this.response = {
           response: userResult,
           location: this.location()
         };
 
+        // If we didn't change the auth data, just keep going
+        if (!hasMutatedAuthData) {
+          return;
+        }
         // We have authData that is updated on login
         // that can happen when token are refreshed,
         // We should update the token and let the user in
@@ -330,9 +333,13 @@ RestWrite.prototype.handleAuthData = function(authData) {
       } else if (this.query && this.query.objectId) {
         // Trying to update auth data but users
         // are different
-        if (results[0].objectId !== this.query.objectId) {
+        if (userResult.objectId !== this.query.objectId) {
           throw new Parse.Error(Parse.Error.ACCOUNT_ALREADY_LINKED,
                               'this auth is already used');
+        }
+        // No auth data was mutated, just keep going
+        if (!hasMutatedAuthData) {
+          return;
         }
       }
     }
