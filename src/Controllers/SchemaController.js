@@ -224,9 +224,7 @@ function validateCLP(perms: ClassLevelPermissions, fields: SchemaFields) {
         // @flow-disable-next
         throw new Parse.Error(
           Parse.Error.INVALID_JSON,
-          `'${
-            perms[operation]
-          }' is not a valid value for class level permissions ${operation}`
+          `'${perms[operation]}' is not a valid value for class level permissions ${operation}`
         );
       } else {
         perms[operation].forEach(key => {
@@ -386,6 +384,9 @@ class SchemaData {
   constructor(allSchemas = []) {
     this.__data = {};
     allSchemas.forEach(schema => {
+      if (volatileClasses.includes(schema.className)) {
+        return;
+      }
       Object.defineProperty(this, schema.className, {
         get: () => {
           if (!this.__data[schema.className]) {
